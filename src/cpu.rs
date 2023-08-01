@@ -1,12 +1,15 @@
 
 use crate::memory::Memory;
 
+use self::alu::Alu;
+
 mod instruction;
 mod alu;
 mod execute;
 
 pub struct Cpu {
     memory: Memory,
+    alu: Alu,
     // Registers
     a: u8,
     f: u8,
@@ -26,6 +29,7 @@ impl Cpu {
     pub fn new() -> Self {
         Cpu {
             memory: Memory::new(),
+            alu: Alu::new(),
             // See [Pandocs](https://gbdev.io/pandocs/Power_Up_Sequence.html#cpu-registers)
             // for initial values of registers.
             a: 0x01,
@@ -135,21 +139,21 @@ impl Cpu {
 
     fn read16(&self, src: Src16) -> u16 {
         macro_rules! word_from {
-            ($hi:ident, $lo:ident) => {
-                ((self.$hi as u16) << 8) | (self.$lo as u16)
+            ($hi:expr, $lo:expr) => {
+                (($hi as u16) << 8) | ($lo as u16)
             };
         }        
         
         match src {
             Src16::Register(reg) => match reg {
-                Reg16::BC => word_from!(b, c),
-                Reg16::DE => word_from!(d, e),
-                Reg16::HL => word_from!(h, l),
+                Reg16::BC => word_from!(self.b, self.c),
+                Reg16::DE => word_from!(self.d, self.e),
+                Reg16::HL => word_from!(self.h, self.l),
                 Reg16::SP => self.sp,
-                Reg16::AF => word_from!(a, f),
+                Reg16::AF => word_from!(self.a, self.f),
             },
             Src16::Const(val) => val,
-            Src16::ConstAddr(addr) => todo!(),
+            Src16::ConstAddr(addr) => unreachable!("Should never read from Src16::ConstAddr (addr = {addr})"), //word_from!(self.memory[addr], self.memory[addr + 1]),
             Src16::SpOffset(offset) => self.sp.wrapping_add(offset as u16),
         }
     }
@@ -169,7 +173,10 @@ impl Cpu {
                 Reg16::AF => to_word!(a, f),
             },
             Src16::Const(_) => panic!("Attempting to write a value into a constant (u16)"),
-            Src16::ConstAddr(_) => todo!(),
+            Src16::ConstAddr(addr) => {
+                self.memory[addr] = (self.sp & 0xFF) as u8;
+                self.memory[addr+1] = (self.sp >> 8) as u8;
+            },
             Src16::SpOffset(_) => panic!("Attempting to write a value into SP with offset"),
         }
     }
@@ -239,6 +246,8 @@ enum Reg8 {
 enum Src16 {
     Register(Reg16),
     Const(u16),
+    /// Used only in opcode 0x08,
+    /// store SP at given address.
     ConstAddr(u16),
     SpOffset(i8),
 }

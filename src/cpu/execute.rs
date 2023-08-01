@@ -1,4 +1,4 @@
-use super::{Cpu, instruction::Instruction, Src8, Src16};
+use super::{Cpu, instruction::Instruction, Src8, Src16, alu::AluOp, Reg8, Flag};
 
 impl Cpu {
     pub(super) fn execute(&mut self, instr: Instruction) {
@@ -7,7 +7,7 @@ impl Cpu {
             Instruction::Stop => todo!(),
             Instruction::Load8 { target, source } => self.load8(target, source),
             Instruction::Halt => todo!(),
-            Instruction::Alu8(_, _) => todo!(),
+            Instruction::Alu8(op, src) => self.alu8(op, src),
             Instruction::RotA(_) => todo!(),
             Instruction::Alu16(_, _) => todo!(),
             Instruction::Control(_, _) => todo!(),
@@ -21,6 +21,37 @@ impl Cpu {
             Instruction::Pop(_) => todo!(),
             Instruction::Push(_) => todo!(),
         }
+    }
+
+    fn alu8(&mut self, op: AluOp, src: Src8) {
+        let lhs = self.read8(Reg8::A.into());
+        let rhs = self.read8(src);
+        let res = match op {
+            AluOp::Add  => self.alu.add8(lhs, rhs),
+            AluOp::AddC => todo!("Add actual carry in"),//self.alu.add8c(lhs, rhs),
+            AluOp::Sub => self.alu.sub8(lhs, rhs),
+            AluOp::SbC => todo!("Add actual carry in"),
+            AluOp::And => self.alu.and8(lhs, rhs),
+            AluOp::Xor => self.alu.xor8(lhs, rhs),
+            AluOp::Or  => self.alu.or8(lhs, rhs),
+            AluOp::Cmp => self.alu.sub8(lhs, rhs),
+            // Instructions inc/dec (opcodes like 0x04),
+            // should act on the src register.
+            AluOp::Inc => self.alu.add8(rhs, 1),
+            AluOp::Dec => self.alu.sub8(rhs, 1),
+        };
+
+        // Store res as needed
+        match op {
+            AluOp::Inc | AluOp::Dec => self.write8(src, res),
+            AluOp::Cmp => (),
+            _ => self.write8(Reg8::A.into(), res),
+        }
+
+        // Update flags
+        self.set_flag(Flag::Z, res == 0);
+        todo!();
+
     }
 
     fn load8(&mut self, target: Src8, source: Src8) {

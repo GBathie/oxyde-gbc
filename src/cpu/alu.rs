@@ -30,6 +30,13 @@ impl Alu {
     fn set_cf(&mut self, val: bool) {
         self.c_flag = val;
     }
+
+    pub(super) fn new() -> Alu {
+        Alu {
+            h_flag: false,
+            c_flag: false
+        }
+    }
 }
 
 

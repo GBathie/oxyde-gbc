@@ -25,10 +25,9 @@ impl Cpu {
 
     /// Decodes the next instruction, increasing the PC as needed.
     /// 
+    /// **Decoding algorithm:**  
     /// Uses decoding tricks for the related Z80 CPU:
-    /// see [here](http://www.z80.info/decoding.htm).
-    /// 
-    /// *Decoding algorithm:*
+    /// see [here](http://www.z80.info/decoding.htm).  
     /// See the opcodes table [here](https://meganesu.github.io/generate-gb-opcodes/)
     /// or [here](https://www.pastraiser.com/cpu/gameboy/gameboy_opcodes.html).
     /// 
@@ -36,6 +35,7 @@ impl Cpu {
     /// - `x` is the higher two bits of `opcode`,
     /// - `y` the next three and
     /// - `z` the last three bits.
+    /// 
     /// The case `x = cst` corresponds to a block of 4 consecutive lines in the opcodes table.
     /// Then, `z = cst` corresponds to two columns of 4 instructions, at index `cst` and `cst + 8`.
     /// The lower bit of `y` (hereafter denoted `q`, and the upper two bits denoted `p`) allows
