@@ -3,6 +3,7 @@ use crate::memory::Memory;
 
 mod instruction;
 mod alu;
+mod execute;
 
 pub struct Cpu {
     memory: Memory,
@@ -44,7 +45,8 @@ impl Cpu {
 
     pub fn run(&mut self) {
         loop {
-            self.fetch_decode();
+            let instr = self.fetch_decode();
+            self.execute(instr);
         }
     }
 
@@ -64,7 +66,7 @@ pub enum InterruptMode {
 const OFFSET : usize = 0xFF00;
 /// Interface to read from and write to the 8 bits/16bits registers
 impl Cpu {
-    fn read8(&self, src: Src8) -> u8 {
+    fn read8(&mut self, src: Src8) -> u8 {
         match src {
             Src8::Register(reg) => {
                 match reg {
@@ -79,9 +81,20 @@ impl Cpu {
                 }
             }
             Src8::Const(val) => val,
-            Src8::OffsetAddr(addr) => self.memory[OFFSET + addr as usize],
+            Src8::FFOffsetAddr(addr) => self.memory[OFFSET + addr as usize],
+            Src8::FFOffsetRegC           => self.memory[OFFSET + self.c as usize],
             Src8::ConstAddr(addr) => self.memory[addr],
-            Src8::Reg16Addr(reg) => self.memory[self.read16(reg)],
+            Src8::Reg16Addr(reg) => self.memory[self.read16(reg.into())],
+            Src8::Reg16AddrOp(reg, op) => {
+                let addr = self.read16(reg.into());
+                let val = self.memory[addr];
+                let new_addr = match op {
+                    PostLoadOp::Inc => addr.wrapping_add(1),
+                    PostLoadOp::Dec => addr.wrapping_sub(1),
+                };
+                self.write16(reg.into(), new_addr);
+                val
+            },
         }
     }
 
@@ -99,46 +112,66 @@ impl Cpu {
                     Reg8::A => self.a = val,
                 }
             }
-            Src8::Const(_) => panic!("Attempting to write a value into a constant"),
-            Src8::OffsetAddr(addr) => self.memory[OFFSET + addr as usize] = val,
+            Src8::Const(_) => panic!("Attempting to write a value into a constant (u8)"),
+            Src8::FFOffsetAddr(addr) => self.memory[OFFSET + addr as usize] = val,
+            Src8::FFOffsetRegC           => self.memory[OFFSET + self.c as usize] = val,
             Src8::ConstAddr(addr) => self.memory[addr] = val,
             Src8::Reg16Addr(reg) => {
-                let addr = self.read16(reg);
+                let addr = self.read16(reg.into());
                 self.memory[addr] = val;
             },
+            Src8::Reg16AddrOp(reg, op) => {
+                let addr = self.read16(reg.into());
+                self.memory[addr] = val;
+                let new_addr = match op {
+                    PostLoadOp::Inc => addr.wrapping_add(1),
+                    PostLoadOp::Dec => addr.wrapping_sub(1),
+                };
+                self.write16(reg.into(), new_addr);
+                
+            }
         }
     }
 
-    fn read16(&self, reg: Reg16) -> u16 {
+    fn read16(&self, src: Src16) -> u16 {
         macro_rules! word_from {
             ($hi:ident, $lo:ident) => {
                 ((self.$hi as u16) << 8) | (self.$lo as u16)
             };
         }        
         
-        match reg {
-            Reg16::BC => word_from!(b, c),
-            Reg16::DE => word_from!(d, e),
-            Reg16::HL => word_from!(h, l),
-            Reg16::SP => self.sp,
-            Reg16::AF => word_from!(a, f),
+        match src {
+            Src16::Register(reg) => match reg {
+                Reg16::BC => word_from!(b, c),
+                Reg16::DE => word_from!(d, e),
+                Reg16::HL => word_from!(h, l),
+                Reg16::SP => self.sp,
+                Reg16::AF => word_from!(a, f),
+            },
+            Src16::Const(val) => val,
+            Src16::ConstAddr(addr) => todo!(),
+            Src16::SpOffset(offset) => self.sp.wrapping_add(offset as u16),
         }
     }
 
-    fn write16(&mut self, reg: Reg16, val: u16) {
+    fn write16(&mut self, src: Src16, val: u16) {
         macro_rules! to_word {
             ($hi:ident, $lo:ident) => {{
                 self.$hi = (val >> 8) as u8; self.$lo = (val & 0xFF) as u8;
             }};
         }        
-        
-        match reg {
-            Reg16::BC => to_word!(b, c),
-            Reg16::DE => to_word!(d, e),
-            Reg16::HL => to_word!(h, l),
-            Reg16::SP => self.sp = val,
-            Reg16::AF => to_word!(a, f),
-        };
+        match src {
+            Src16::Register(reg) => match reg {
+                Reg16::BC => to_word!(b, c),
+                Reg16::DE => to_word!(d, e),
+                Reg16::HL => to_word!(h, l),
+                Reg16::SP => self.sp = val,
+                Reg16::AF => to_word!(a, f),
+            },
+            Src16::Const(_) => panic!("Attempting to write a value into a constant (u16)"),
+            Src16::ConstAddr(_) => todo!(),
+            Src16::SpOffset(_) => panic!("Attempting to write a value into SP with offset"),
+        }
     }
 
     fn get_flag(&self, flag: Flag) -> bool {
@@ -171,15 +204,23 @@ impl Cpu {
 enum Src8 {
     Register(Reg8),
     Const(u8),
-    OffsetAddr(u8),
+    FFOffsetAddr(u8),
+    FFOffsetRegC,
     ConstAddr(u16),
     Reg16Addr(Reg16),
+    Reg16AddrOp(Reg16, PostLoadOp),
 }
 
 impl From<Reg8> for Src8 {
     fn from(value: Reg8) -> Self {
         Self::Register(value)
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum PostLoadOp {
+    Inc,
+    Dec,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -199,7 +240,13 @@ enum Src16 {
     Register(Reg16),
     Const(u16),
     ConstAddr(u16),
-    OffsetSP(i8),
+    SpOffset(i8),
+}
+
+impl From<Reg16> for Src16 {
+    fn from(value: Reg16) -> Self {
+        Self::Register(value)
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -218,7 +265,9 @@ enum Reg16 {
 #[derive(Clone, Copy, Debug)]
 enum ControlOp {
     Ret,
+    RetI,
     Jump(u16),
+    JumpHL,
     JumpRel(i8),
     Call(u16),
 }
@@ -242,4 +291,4 @@ enum Flag {
 
 
 #[cfg(test)]
-mod decode_tests;
+mod decode_panic_tests;
