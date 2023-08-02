@@ -3,8 +3,9 @@ use crate::memory::Memory;
 
 use self::alu::Alu;
 
-mod instruction;
 mod alu;
+mod instruction;
+mod decode;
 mod execute;
 
 pub struct Cpu {
@@ -265,29 +266,6 @@ enum Reg16 {
     HL,
     SP,
     AF,
-}
-
-
-
-///
-/// 
-#[derive(Clone, Copy, Debug)]
-enum ControlOp {
-    Ret,
-    RetI,
-    Jump(u16),
-    JumpHL,
-    JumpRel(i8),
-    Call(u16),
-}
-
-#[derive(Clone, Copy, Debug)]
-enum Condition {
-    NZ,
-    Z,
-    NC,
-    C,
-    None,
 }
 
 #[derive(Clone, Copy, Debug)]

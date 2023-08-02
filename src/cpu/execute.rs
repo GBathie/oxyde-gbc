@@ -1,5 +1,5 @@
-use super::{Cpu, instruction::Instruction, Src8, Src16, alu::AluOp, Reg8, Flag};
-
+use super::{Cpu, Src8, Src16, Reg8, Flag};
+use super::instruction::{Instruction, AluOp};
 impl Cpu {
     pub(super) fn execute(&mut self, instr: Instruction) {
         match instr {

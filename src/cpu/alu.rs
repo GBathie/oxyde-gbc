@@ -39,21 +39,6 @@ impl Alu {
     }
 }
 
-
-#[derive(Clone, Copy, Debug)]
-pub(super) enum AluOp {
-    Add,
-    AddC,
-    Sub,
-    SbC,
-    And,
-    Xor,
-    Or,
-    Cmp,
-    Inc,
-    Dec,
-}
-
 impl Alu {
     /// 3-way add.
     /// Can be used to implement all operations:
@@ -115,25 +100,4 @@ impl Alu {
         self.set_cf(false);
         lhs.bitxor(rhs)
     }
-}
-
-
-#[derive(Clone, Copy, Debug)]
-pub(super) enum BitOp {
-    Rot(RotKind),
-    GetBit(usize),
-    ResBit(usize),
-    SetBit(usize),
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(super) enum RotKind {
-    RotLeftCarry,
-    RotRightCarry,
-    RotLeft,
-    RotRight,
-    ShiftLeftArith,
-    ShiftRightArith,
-    ShiftLeftLogic,
-    ShiftRightLogic,
 }
