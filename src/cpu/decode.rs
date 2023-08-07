@@ -107,11 +107,11 @@ fn decode_mixed(cpu: &mut Cpu, y: usize, z: usize) -> Instruction {
             _ => unreachable!(),
         },
         0x0 if r == 1 => Instruction::Control(ControlOp::JumpRel(read_imm_i8(cpu)), COND[s]),
-        0x1 if q == 1 => Instruction::Load16 {
+        0x1 if q == 0 => Instruction::Load16 {
             target: RP[p], 
             source: Src16::Const(read_imm_u16(cpu)) 
         },
-        0x1 => Instruction::Alu16(AluOp::Add, RP[p]),
+        0x1 if q == 1 => Instruction::Alu16(AluOp::Add, RP[p]),
         0x2 if q == 0 => Instruction::Load8 { target: RP3[p], source: Src8::Register(Reg8::A) },
         0x2 if q == 1 => Instruction::Load8 { target: Src8::Register(Reg8::A), source: RP3[p] },
         0x3 if q == 0 => Instruction::Alu16(AluOp::Inc, RP[p]),
@@ -151,10 +151,10 @@ fn decode_control(cpu: &mut Cpu, y: usize, z: usize) -> Instruction {
     match z {
         0x0 if r == 0 => Instruction::Control(ControlOp::Ret, COND[s]),
         0x0 if r == 1 => match s {
-            0x0 => Instruction::Load8 { target: Src8::FFOffsetRegC, source: Reg8::A.into() },
-            0x1 => Instruction::Load8 { target: Src8::ConstAddr(read_imm_u16(cpu)), source: Reg8::A.into() },
-            0x2 => Instruction::Load8 { target: Reg8::A.into(), source: Src8::FFOffsetRegC },
-            0x3 => Instruction::Load8 { target: Reg8::A.into(), source: Src8::ConstAddr(read_imm_u16(cpu)) },
+            0x0 => Instruction::Load8 { target: Src8::FFOffsetAddr(read_imm_u8(cpu)), source: Reg8::A.into() },
+            0x1 => Instruction::Load16 { target: Reg16::SP.into(), source: Src16::SpOffset(read_imm_i8(cpu)) },
+            0x2 => Instruction::Load8 { target: Reg8::A.into(), source: Src8::FFOffsetAddr(read_imm_u8(cpu)) },
+            0x3 => Instruction::Load16 { target: Reg16::HL.into(), source: Src16::SpOffset(read_imm_i8(cpu)) },
             _ => unreachable!(),
         },
         0x1 if q == 0 => Instruction::Pop(RP2[p]),
@@ -167,10 +167,10 @@ fn decode_control(cpu: &mut Cpu, y: usize, z: usize) -> Instruction {
         },
         0x2 if r == 0 => Instruction::Control(ControlOp::Jump(read_imm_u16(cpu)), COND[s]),
         0x2 if r == 1 => match s {
-            0x0 => Instruction::Load8 { target: Src8::FFOffsetAddr(read_imm_u8(cpu)), source: Reg8::A.into() },
-            0x1 => Instruction::Load16 { target: Reg16::SP.into(), source: Src16::SpOffset(read_imm_i8(cpu)) },
-            0x2 => Instruction::Load8 { target: Reg8::A.into(), source: Src8::FFOffsetAddr(read_imm_u8(cpu)) },
-            0x3 => Instruction::Load16 { target: Reg16::HL.into(), source: Src16::SpOffset(read_imm_i8(cpu)) },
+            0x0 => Instruction::Load8 { target: Src8::FFOffsetRegC, source: Reg8::A.into() },
+            0x1 => Instruction::Load8 { target: Src8::ConstAddr(read_imm_u16(cpu)), source: Reg8::A.into() },
+            0x2 => Instruction::Load8 { target: Reg8::A.into(), source: Src8::FFOffsetRegC },
+            0x3 => Instruction::Load8 { target: Reg8::A.into(), source: Src8::ConstAddr(read_imm_u16(cpu)) },
             _ => unreachable!(),
         },
         0x3 => match y {
@@ -190,7 +190,7 @@ fn decode_control(cpu: &mut Cpu, y: usize, z: usize) -> Instruction {
 
 const ROT: [RotKind; 8] =
     [RotKind::RotLeftCarry,   RotKind::RotRightCarry,   RotKind::RotLeft,        RotKind::RotRight,
-     RotKind::ShiftLeftArith, RotKind::ShiftRightArith, RotKind::ShiftLeftLogic, RotKind::ShiftRightLogic];
+     RotKind::ShiftLeftArith, RotKind::ShiftRightArith, RotKind::Swap, RotKind::ShiftRightLogic];
 
 fn decode_bit_op(opcode: u8) -> Instruction {
     let (x, y, z) = decompose(opcode);

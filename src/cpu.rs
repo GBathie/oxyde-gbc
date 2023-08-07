@@ -279,3 +279,6 @@ enum Flag {
 
 #[cfg(test)]
 mod decode_panic_tests;
+
+#[cfg(test)]
+mod decode_tests;

@@ -51,7 +51,8 @@ pub(super) enum RotKind {
     RotRight,
     ShiftLeftArith,
     ShiftRightArith,
-    ShiftLeftLogic,
+    // ShiftLeftLogic,
+    Swap,
     ShiftRightLogic,
 }
 
