@@ -48,11 +48,38 @@ impl Cpu {
         }
     }
 
+
+    pub fn new_test() -> Self {
+        Cpu {
+            memory: Memory::from_file("cpu_instrs.gb"),
+            // memory: Memory::new(),
+            alu: Alu::new(),
+            // See [Pandocs](https://gbdev.io/pandocs/Power_Up_Sequence.html#cpu-registers)
+            // for initial values of registers.
+            a: 0x01,
+            f: 0x00, // Not sure about this one, chose the value of DMG0
+            b: 0xFF,
+            c: 0x13,
+            d: 0x00,
+            e: 0xC1,
+            h: 0x84,
+            l: 0x03,
+            sp: 0xFFFE,
+            pc: 0x0100,
+            //
+            im: InterruptMode::Todo,
+        }
+    }
+
     pub fn run(&mut self) {
         loop {
-            let instr = self.fetch_decode();
-            self.execute(instr);
+            self.step();
         }
+    }
+
+    fn step(&mut self) {
+        let instr = self.fetch_decode();
+        self.execute(instr);
     }
 
     fn fetch(&mut self) -> u8 {
@@ -62,6 +89,15 @@ impl Cpu {
     }
 }
 
+fn u8u8_to_u16((lo, hi): (u8, u8)) -> u16 {
+    (lo as u16) | ((hi as u16) << 8)
+}
+
+fn u16_to_u8u8(val: u16) ->  (u8, u8) {
+    let lo = (val & 0xFF) as u8;
+    let hi = ((val >> 8) & 0xFF) as u8;
+    (lo, hi)
+}
 
 pub enum InterruptMode {
     Todo,
@@ -275,10 +311,3 @@ enum Flag {
     N,
     C
 }
-
-
-#[cfg(test)]
-mod decode_panic_tests;
-
-#[cfg(test)]
-mod decode_tests;

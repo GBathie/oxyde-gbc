@@ -7,7 +7,7 @@ pub(super) enum Instruction {
     Load8 { target: Src8, source: Src8 },
     Halt,
     Alu8(AluOp, Src8),
-    RotA(BitOp),
+    RotA(RotKind),
     Alu16(AluOp, Src16),
     Control(ControlOp, Condition),
     Bit(BitOp, Src8),
@@ -16,7 +16,7 @@ pub(super) enum Instruction {
     ComplA,
     CarryFlag { set: bool },
     InterruptEnable { enable: bool},
-    RST(usize),
+    // RST(usize),
     Pop(Reg16),
     Push(Reg16),
 }
@@ -64,6 +64,7 @@ pub(super) enum ControlOp {
     JumpHL,
     JumpRel(i8),
     Call(u16),
+    RST(usize),
 }
 
 #[derive(Clone, Copy, Debug)]

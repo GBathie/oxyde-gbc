@@ -1,26 +1,21 @@
 use std::ops::{BitXor, BitOr, BitAnd};
 
-use super::{Cpu, Reg8, Flag};
+use super::{u16_to_u8u8, u8u8_to_u16};
 
 pub(super) struct Alu {
-    h_flag: bool,
-    c_flag: bool,
+    pub(super) z_flag: bool,
+    pub(super) n_flag: bool,
+    pub(super) h_flag: bool,
+    pub(super) c_flag: bool,
 }
 
 impl Alu {
-    pub(super) fn flags(&self) -> u8 {
-        let mut res = 0;
-        if self.h_flag { res |= 0x20 };
-        if self.c_flag { res |= 0x10 };
-        res
-    }
-
-    fn get_hf(&self) -> bool {
-        self.h_flag
+    fn set_zf(&mut self, val: bool) {
+        self.z_flag = val;
     }
     
-    fn get_cf(&self) -> bool {
-        self.c_flag
+    fn set_nf(&mut self, val: bool) {
+        self.n_flag = val;
     }
 
     fn set_hf(&mut self, val: bool) {
@@ -33,6 +28,8 @@ impl Alu {
 
     pub(super) fn new() -> Alu {
         Alu {
+            z_flag: false,
+            n_flag: false,
             h_flag: false,
             c_flag: false
         }
@@ -48,56 +45,70 @@ impl Alu {
         let (tmp, carry) = lhs.overflowing_add(rhs);
         let (res, carry2) = tmp.overflowing_add(carry_in);
 
-        // self.set_flag(Flag::Z, res == 0);
-        // self.set_flag(Flag::N, false);
         let half_carry = (lhs & 0xF) + (rhs & 0xF) + carry_in > 0xF;
         self.set_hf(half_carry);
         self.set_cf(carry || carry2);
+        self.set_zf(res == 0);
         res
     }
 
-    pub(super) fn add8c(&mut self, lhs: u8, rhs: u8) -> u8 {
-        self.add8c_in(lhs, rhs.wrapping_neg(), self.c_flag as u8)
+    pub(super) fn add8c(&mut self, lhs: u8, rhs: u8, carry: bool) -> u8 {
+        self.set_nf(false);
+        self.add8c_in(lhs, rhs.wrapping_neg(), carry as u8)
     }
 
     pub(super) fn add8(&mut self, lhs: u8, rhs: u8) -> u8 {
+        self.set_nf(false);
         self.add8c_in(lhs, rhs, 0)
     }
 
     /// Sub
     pub(super) fn sub8(&mut self, lhs: u8, rhs: u8) -> u8 {
+        self.set_nf(true);
         self.add8c_in(lhs, rhs.wrapping_neg(), 0)
-        // self.set_flag(Flag::N, true);
     }
 
     /// Subc
-    pub(super) fn sub8c(&mut self, lhs: u8, rhs: u8) -> u8 {
-        self.add8c_in(lhs, rhs.wrapping_neg(), (self.c_flag as u8).wrapping_neg())
-        // self.set_flag(Flag::N, true);
-        // res
+    pub(super) fn sub8c(&mut self, lhs: u8, rhs: u8, carry: bool) -> u8 {
+        self.set_nf(true);
+        self.add8c_in(lhs, rhs.wrapping_neg(), (carry as u8).wrapping_neg())
     }
 
-    pub(super) fn add16(&mut self, (l_hi, l_lo): (u8, u8), (r_hi, r_lo): (u8, u8)) -> (u8, u8) {
+    pub(super) fn add16(&mut self, lhs: u16, rhs: u16) -> u16 {
+        let (l_lo, l_hi) = u16_to_u8u8(lhs);
+        let (r_lo, r_hi) = u16_to_u8u8(rhs);
         let res_lo = self.add8(l_lo, r_lo);
-        let res_hi = self.add8c(l_hi, r_hi);
-        (res_hi, res_lo)
+        let res_hi = self.add8c(l_hi, r_hi, self.c_flag);
+        u8u8_to_u16((res_lo, res_hi))
     }
 
     pub(super) fn and8(&mut self, lhs: u8, rhs: u8) -> u8 {
+        let res = lhs.bitand(rhs);
+        self.set_zf(res == 0);
+        self.set_nf(false);
         self.set_hf(true);
         self.set_cf(false);
-        lhs.bitand(rhs)
+
+        res
     }
 
     pub(super) fn or8(&mut self, lhs: u8, rhs: u8) -> u8 {
+        let res = lhs.bitor(rhs);
+        self.set_zf(res == 0);
+        self.set_nf(false);
         self.set_hf(false);
         self.set_cf(false);
-        lhs.bitor(rhs)
+
+        res
     }
 
     pub(super) fn xor8(&mut self, lhs: u8, rhs: u8) -> u8 {
+        let res = lhs.bitxor(rhs);
+        self.set_zf(res == 0);
+        self.set_nf(false);
         self.set_hf(false);
         self.set_cf(false);
-        lhs.bitxor(rhs)
+
+        res
     }
 }

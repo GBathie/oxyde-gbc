@@ -119,7 +119,7 @@ fn decode_mixed(cpu: &mut Cpu, y: usize, z: usize) -> Instruction {
         0x4 => Instruction::Alu8(AluOp::Inc, R[y]),
         0x5 => Instruction::Alu8(AluOp::Dec, R[y]),
         0x6 => Instruction::Load8 { target: R[y], source: Src8::Const(read_imm_u8(cpu)) },
-        0x7 if r == 0 => Instruction::RotA(BitOp::Rot(ROT[s])),
+        0x7 if r == 0 => Instruction::RotA(ROT[s]),
         0x7 if r == 1 => match s {
             0x0 => Instruction::DAA,
             0x1 => Instruction::ComplA,
@@ -183,7 +183,7 @@ fn decode_control(cpu: &mut Cpu, y: usize, z: usize) -> Instruction {
         0x5 if q == 0 => Instruction::Push(RP2[p]),
         0x5 if q == 1 && p == 0 => Instruction::Control(ControlOp::Call(read_imm_u16(cpu)), Condition::None),
         0x6 => Instruction::Alu8(ALU[y], Src8::Const(read_imm_u8(cpu))),
-        0x7 => Instruction::RST(y),
+        0x7 => Instruction::Control(ControlOp::RST(y), Condition::None),
         _ => unreachable!(),
     }
 }
@@ -203,3 +203,9 @@ fn decode_bit_op(opcode: u8) -> Instruction {
         _ => unreachable!(),
     }, R[z])
 }
+
+#[cfg(test)]
+mod decode_panic_tests;
+
+#[cfg(test)]
+mod decode_tests;
