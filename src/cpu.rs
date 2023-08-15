@@ -323,5 +323,5 @@ enum Flag {
     C
 }
 
-#[cfg(test)]
-mod runtime_benchmarks;
+// #[cfg(test)]
+// mod runtime_benchmarks;
