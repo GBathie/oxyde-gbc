@@ -27,9 +27,9 @@ impl Cpu {
         unsafe {
             let ic = INSTR_COUNT;
             INSTR_COUNT += 1;
-            if ic % 4_190_000 == 0 {
+        //     if ic % 4_190_000 == 0 {
                 eprintln!("PC : 0x{:X} -- instr n° {ic}, {instr:05x?}", self.pc);
-            }
+        //     }
         };
         use Instruction::*;
         match instr {
@@ -268,8 +268,28 @@ impl Cpu {
         self.write16(target, val);
     }
 
+    /// DAA: "Decimal adjust accumulator".
+    /// Convert a number to binary-coded decimal after an operation.
+    /// 
     fn daa(&mut self) {
-        todo!()
+        todo!();
+        let val = self.a;
+        let carry = self.get_flag(Flag::C);
+        let mut next_carry = false;
+        let res = if self.get_flag(Flag::N) {
+            // Last op was a substraction
+            0
+        } else {
+            // Last op was an add
+            if carry || val > 0x99 {
+                val + 0x60
+            } else {
+                val
+            }
+        };
+        self.write8(Reg8::A.into(), res);
+
+        self.set_flags((res == 0).into(), Keep, Reset, next_carry.into());
     }
 
     fn compl_a(&mut self) {

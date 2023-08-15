@@ -34,7 +34,7 @@ impl Cpu {
             // See [Pandocs](https://gbdev.io/pandocs/Power_Up_Sequence.html#cpu-registers)
             // for initial values of registers.
             a: 0x01,
-            f: 0x00, // Not sure about this one, chose the value of DMG0
+            f: 0x00, // Not sure about this one, chose the value for DMG0
             b: 0xFF,
             c: 0x13,
             d: 0x00,
@@ -83,9 +83,14 @@ impl Cpu {
     }
 
     fn fetch(&mut self) -> u8 {
-        let val = self.memory[self.pc];
+        let val = self.memory.read(self.pc);
         self.pc += 1;
         val
+    }
+
+    #[inline]
+    fn tick(&mut self, t: usize) {
+
     }
 }
 
@@ -107,6 +112,7 @@ pub enum InterruptMode {
 const OFFSET : usize = 0xFF00;
 /// Interface to read from and write to the 8 bits/16bits registers
 impl Cpu {
+    #[inline]
     fn read8(&mut self, src: Src8) -> u8 {
         match src {
             Src8::Register(reg) => {
@@ -122,13 +128,13 @@ impl Cpu {
                 }
             }
             Src8::Const(val) => val,
-            Src8::FFOffsetAddr(addr) => self.memory[OFFSET + addr as usize],
-            Src8::FFOffsetRegC           => self.memory[OFFSET + self.c as usize],
-            Src8::ConstAddr(addr) => self.memory[addr],
-            Src8::Reg16Addr(reg) => self.memory[self.read16(reg.into())],
+            Src8::FFOffsetAddr(addr) => self.memory.read(OFFSET + addr as usize),
+            Src8::FFOffsetRegC           => self.memory.read(OFFSET + self.c as usize),
+            Src8::ConstAddr(addr) => self.memory.read(addr),
+            Src8::Reg16Addr(reg) => self.memory.read(self.read16(reg.into())),
             Src8::Reg16AddrOp(reg, op) => {
                 let addr = self.read16(reg.into());
-                let val = self.memory[addr];
+                let val = self.memory.read(addr);
                 let new_addr = match op {
                     PostLoadOp::Inc => addr.wrapping_add(1),
                     PostLoadOp::Dec => addr.wrapping_sub(1),
@@ -139,6 +145,7 @@ impl Cpu {
         }
     }
 
+    #[inline]
     fn write8(&mut self, src: Src8, val: u8) {
         match src {
             Src8::Register(reg) => {
@@ -154,16 +161,16 @@ impl Cpu {
                 }
             }
             Src8::Const(_) => panic!("Attempting to write a value into a constant (u8)"),
-            Src8::FFOffsetAddr(addr) => self.memory[OFFSET + addr as usize] = val,
-            Src8::FFOffsetRegC           => self.memory[OFFSET + self.c as usize] = val,
-            Src8::ConstAddr(addr) => self.memory[addr] = val,
+            Src8::FFOffsetAddr(addr) => self.memory.write(OFFSET + addr as usize, val),
+            Src8::FFOffsetRegC           => self.memory.write(OFFSET + self.c as usize, val),
+            Src8::ConstAddr(addr) => self.memory.write(addr, val),
             Src8::Reg16Addr(reg) => {
                 let addr = self.read16(reg.into());
-                self.memory[addr] = val;
+                self.memory.write(addr, val);
             },
             Src8::Reg16AddrOp(reg, op) => {
                 let addr = self.read16(reg.into());
-                self.memory[addr] = val;
+                self.memory.write(addr, val);
                 let new_addr = match op {
                     PostLoadOp::Inc => addr.wrapping_add(1),
                     PostLoadOp::Dec => addr.wrapping_sub(1),
@@ -174,6 +181,7 @@ impl Cpu {
         }
     }
 
+    #[inline]
     fn read16(&self, src: Src16) -> u16 {
         macro_rules! word_from {
             ($hi:expr, $lo:expr) => {
@@ -195,6 +203,7 @@ impl Cpu {
         }
     }
 
+    #[inline]
     fn write16(&mut self, src: Src16, val: u16) {
         macro_rules! to_word {
             ($hi:ident, $lo:ident) => {{
@@ -211,13 +220,14 @@ impl Cpu {
             },
             Src16::Const(_) => panic!("Attempting to write a value into a constant (u16)"),
             Src16::ConstAddr(addr) => {
-                self.memory[addr] = (self.sp & 0xFF) as u8;
-                self.memory[addr+1] = (self.sp >> 8) as u8;
+                self.memory.write(addr, (self.sp & 0xFF) as u8);
+                self.memory.write(addr+1, (self.sp >> 8) as u8);
             },
             Src16::SpOffset(_) => panic!("Attempting to write a value into SP with offset"),
         }
     }
 
+    #[inline]
     fn get_flag(&self, flag: Flag) -> bool {
         match flag {
             Flag::Z => (self.f & 0x80) != 0,
@@ -227,6 +237,7 @@ impl Cpu {
         }
     }
 
+    #[inline]
     fn set_flag(&mut self, flag: Flag, val: bool) {
         macro_rules! set_f {
             ($mask:literal) => {
@@ -311,3 +322,6 @@ enum Flag {
     N,
     C
 }
+
+#[cfg(test)]
+mod runtime_benchmarks;

@@ -6,11 +6,11 @@ macro_rules! test_range {
     ($range:expr, $variant:pat $(if $cond:expr)? $(, $prefix:expr)?) => {
         let mut cpu = Cpu::new();
         $(
-            cpu.memory[cpu.pc] = $prefix;
+            cpu.memory.write(cpu.pc, $prefix);
             cpu.pc += 1;
         )?
         for i in $range {
-            cpu.memory[cpu.pc] = i;
+            cpu.memory.write(cpu.pc, i);
             $(
                 cpu.pc -= 1;
                 let _ = $prefix;
